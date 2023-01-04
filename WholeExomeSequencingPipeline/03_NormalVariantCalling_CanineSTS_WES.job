@@ -1,0 +1,26 @@
+#!/bin/bash
+#SBATCH -J M2_fname.code
+#SBATCH -p shas
+#SBATCH --qos Normal
+#SBATCH -t 10:00:00
+#SBATCH -N 1
+#SBATCH --mem=40000
+#SBATCH --output=fname.code-project.id_normalVariants.out
+
+
+#Loading modules
+module load jdk
+
+#Running Mutect2 - this is for creating panel of normals
+gatk --java-options "-Xmx40g" Mutect2 \
+    -R /projects/sdas@colostate.edu/CanFamDatabases/DogGenome/Canis_familiaris.CanFam3.1.dna.fa \
+    -I ../BAM/fname.code_recal_reads.bam \
+    -tumor fname.code \
+    --disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
+    -O ../rawVCF.normal/fname.code_Mutect2.vcf.gz
+
+#Select variants with DP >10
+zcat ../rawVCF.normal/fname.code_Mutect2.vcf.gz | java -Xmx20g -jar ~/SnpSift.jar filter "( DP >= 10 )" > ../rawVCF.normal/FilteredNormalVariants/fname.code_Normals_STS_Mutect_filtDP.vcf
+
+bgzip ../rawVCF.normal/FilteredNormalVariants/fname.code_Normals_STS_Mutect_filtDP.vcf
+tabix -p vcf ../rawVCF.normal/FilteredNormalVariants/fname.code_Normals_STS_Mutect_filtDP.vcf.gz

@@ -1,0 +1,127 @@
+#!/bin/bash
+#SBATCH -J fname.codeBWA
+#SBATCH -p shas
+#SBATCH --qos Normal
+#SBATCH -t 24:00:00
+#SBATCH -N 1
+#SBATCH --mem=40000
+#SBATCH --output=fname.code_STS_Mapping.out
+
+#Loading modules
+module load jdk/1.8.0
+
+#Running BWA 
+
+bwa mem -M -t 12 \
+-R '@RG\tID:fname.id\tSM:fname.code\tPL:illumina\tLB:lib.code\tPU:fname.code.rg.lane' \
+/projects/sdas@colostate.edu/CanFamDatabases/DogGenome/CanFam3 \
+../Trimfiles/fnameR1 \
+../Trimfiles/fnameR2 > ../sam/fname.code_BWA.sam
+
+
+#4_Sort SAM for marking duplicates
+
+java -jar ~/picard.jar SortSam \
+      TMP_DIR=../bam/tempfname.code \
+      I=../sam/fname.code_BWA.sam \
+      O=../sam/fname.code_BWA_sorted.sam \
+      SORT_ORDER=coordinate
+
+
+#5_Mark Duplicates 
+
+java -jar ~/picard.jar MarkDuplicates \
+ 	TMP_DIR=../bam/tempfname.code \
+ 	I=../sam/fname.code_BWA_sorted.sam \
+ 	O=../bam/fname.code_dedup.bam \
+ 	M=../bam/fname.code_marked_dup_metrics.txt
+
+#6_Index bam file
+
+samtools index ../bam/fname.code_dedup.bam
+
+#7_Recalibrate bases
+
+gatk BaseRecalibrator \
+   -R /projects/sdas\@colostate.edu/CanFamDatabases/DogGenome/Canis_familiaris.CanFam3.1.dna.fa  \
+   -I ../bam/fname.code_dedup.bam \
+   --known-sites /projects/sdas\@colostate.edu/CanFamDatabases/Canis_familiaris_V89.vcf \
+   -O ../bam/fname.code_recal_data.grp
+
+#8_Print bam file with recalculated bases
+
+gatk ApplyBQSR \
+   -R /projects/sdas\@colostate.edu/CanFamDatabases/DogGenome/Canis_familiaris.CanFam3.1.dna.fa \
+   -I ../bam/fname.code_dedup.bam \
+   --bqsr-recal-file  ../bam/fname.code_recal_data.grp \
+   -O ../BAM/fname.code_recal_reads.bam
+
+
+#Running Metrics on STS samples
+
+#1_Collect artifacts using gatk
+gatk --java-options "-Xmx38g" CollectSequencingArtifactMetrics \
+   -I ../BAM/fname.code_recal_reads.bam \
+   -O ../Metrics/SeqArtifact/fname.code \
+   --FILE_EXTENSION ".txt" \
+   -R /projects/sdas@colostate.edu/CanFamDatabases/DogGenome/Canis_familiaris.CanFam3.1.dna.fa
+
+
+#2_Collecting collectReadGroupChecksum
+gatk --java-options "-Xmx38g" CalculateReadGroupChecksum \
+   -I ../BAM/fname.code_recal_reads.bam \
+   -O ../Metrics/RGCheckSums/fname.code_RGCheckSums
+
+
+#3_Alignment metrics
+java -jar ~/picard.jar CollectAlignmentSummaryMetrics \
+        R=/projects/sdas@colostate.edu/CanFamDatabases/DogGenome/Canis_familiaris.CanFam3.1.dna.fa \
+        I=../BAM/fname.code_recal_reads.bam \
+        O=../Metrics/alignAndinsert/fname.code_alignmentMetrics.txt
+
+
+#4_InsertSizeMetrics
+ java -jar ~/picard.jar CollectInsertSizeMetrics \
+        I=../BAM/fname.code_recal_reads.bam \
+        O=../Metrics/alignAndinsert/fname.code_insertSizeMetrics.txt \
+        H=../Metrics/alignAndinsert/fname.code_insertSizeHistogram.pdf \
+        M=0.5
+
+
+#5_Depth using GATK v3.7
+java -jar ~/GenomeAnalysisTK.jar \
+     -T DepthOfCoverage \
+     -R /projects/sdas@colostate.edu/CanFamDatabases/DogGenome/Canis_familiaris.CanFam3.1.dna.fa \
+     -I ../BAM/fname.code_recal_reads.bam \
+     -L /projects/sdas@colostate.edu/CanFamDatabases/Dog_Exome_sortedNo-colnames.bed \
+     --outputFormat table \
+     -o ../Metrics/depth/fname.code \
+     -l DEBUG
+
+
+#6_Collecting oxoG metrics
+java -jar ~/picard.jar CollectOxoGMetrics \
+   I=../BAM/fname.code_recal_reads.bam \
+   O=../Metrics/OxoG/fname.code_oxoG_metrics.txt \
+   R=/projects/sdas@colostate.edu/CanFamDatabases/DogGenome/Canis_familiaris.CanFam3.1.dna.fa
+
+
+#7_flagstat 
+
+samtools flagstat ../BAM/fname.code_recal_reads.bam > ../Metrics/flagstat/fname.code_flagstat.out
+
+
+#8_Validate BAM file -gatk 
+gatk ValidateSamFile \
+   -I ../BAM/fname.code_recal_reads.bam \
+   --CREATE_MD5_FILE true \
+   --TMP_DIR ../Metrics/ValidateBAM/fname.code.temp \
+   -O ../Metrics/ValidateBAM/fname.code_ValBAM_gatk
+
+#9_Collecting Base distribution
+
+java -jar ~/picard.jar CollectBaseDistributionByCycle \
+   CHART=../Metrics/BaseDist/fname.code_base_dist_by_cycle.pdf \
+   ALIGNED_READS_ONLY=true \
+   I=../BAM/fname.code_recal_reads.bam \
+   O=../Metrics/BaseDist/fname.code_CollectBaseDistributionByCycle.txt

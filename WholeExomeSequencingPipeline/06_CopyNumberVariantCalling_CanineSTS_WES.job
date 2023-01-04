@@ -1,0 +1,36 @@
+#!/bin/bash
+#SBATCH -J SZ_fname.code
+#SBATCH -p shas
+#SBATCH --qos Normal
+#SBATCH -t 24:00:00
+#SBATCH -N 1
+#SBATCH --mem=40000
+#SBATCH --output=fname.code.bam2seqz.out
+
+# Load modules
+module load python
+module load R
+
+#Copy number variation using Sequenza version 2.1.9999b1
+
+#Step1_Generating seqz file from BAM files
+
+~/sequenza-utils bam2seqz \
+--normal ../../Normals/BAM/normal.name_recal_reads.bam \
+--tumor ../BAM/fname.code_recal_reads.bam \
+--fasta /projects/sdas@colostate.edu/CanFamDatabases/DogGenome/Canis_familiaris.CanFam3.1.dna.fa \
+-gc /projects/sdas\@colostate.edu/CanFamGC/CanFam.gc50Base.txt.gz \
+--output ../seqz/fname.code.seqz.gz
+
+#Step2_Binning seqz 
+
+~/sequenza-utils seqz_binning -s ../seqz/fname.code.seqz.gz -w 50 -o ../seqz/fname.code_small.seqz.gz
+
+#Step3_Generating copy number variation results
+
+
+mkdir ../seqz/fname.code
+
+Rscript 07_CopyNumberVariantCalling_Sequenza_CanineSTS_WES.R
+
+mv ../seqz/fname.code/fname.code_segments.txt ../seqz/segments/
