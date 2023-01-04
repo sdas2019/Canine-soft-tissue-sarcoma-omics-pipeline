@@ -1,0 +1,62 @@
+#!/bin/bash
+#SBATCH -J SM_fname.code
+#SBATCH -p shas
+#SBATCH --qos Normal
+#SBATCH -t 24:00:00
+#SBATCH -N 1
+#SBATCH --mem=40000
+#SBATCH --output=fname.code_StarMapping_quant.out
+
+#Loading modules
+module load jdk
+
+# Creating directory to save output files
+mkdir ../Star.quant/fname.code
+
+#Mapping
+STAR --genomeDir /projects/sdas@colostate.edu/CanFamDatabases/EnsemblV99/STAR.canfam3.1/ \
+         --readFilesIn ../Trimfiles/fname.code_R1_paired_rna.fastq.gz \
+	../Trimfiles/fname.code_R2_paired_rna.fastq.gz \
+         --outReadsUnmapped None \
+         --outSAMtype BAM SortedByCoordinate \
+         --twopassMode Basic \
+         --runThreadN 32 \
+         --readFilesCommand zcat \
+         --quantMode GeneCounts \
+         --outSAMstrandField intronMotif \
+         --outSAMunmapped Within \
+         --chimSegmentMin 12 \
+         --chimJunctionOverhangMin 8 \
+         --alignSJDBoverhangMin 10 \
+         --alignMatesGapMax 100000 \
+         --alignIntronMax 100000 \
+         --alignSJstitchMismatchNmax 5 -1 5 5 \
+         --chimScoreJunctionNonGTAG -4 \
+         --alignSplicedMateMapLminOverLmate 0 \
+         --alignSplicedMateMapLmin 30 \
+         --outFileNamePrefix ../Star.quant/fname.code/fname.code_Star_
+
+
+#Indexing bam file
+samtools index ../Star.quant/fname.code/fname.code_Star_Aligned.sortedByCoord.out.bam
+
+#Flagstat
+samtools flagstat ../Star.quant/fname.code/fname.code_Star_Aligned.sortedByCoord.out.bam > ../Star.quant/fname.code/fname.code_Star_quant.flagstat
+
+#Paired only read extraction
+samtools view -f 0x2 -b -h ../Star.quant/fname.code/fname.code_Star_Aligned.sortedByCoord.out.bam > ../Star.quant/fname.code/fname.code_Star_RNA_PairedOnly.bam
+
+#Index bam
+samtools index ../Star.quant/fname.code/fname.code_Star_RNA_PairedOnly.bam
+
+#HTSeq -count data
+source /curc/sw/anaconda3/latest
+conda activate htseq
+
+htseq-count -f bam \
+	../Star.quant/fname.code/fname.code_Star_RNA_PairedOnly.bam \
+	/projects/sdas@colostate.edu/CanFamDatabases/EnsemblV99/Canis_familiaris.CanFam3.1.99.chr.gtf \
+	> ../Star.quant/HTSeq.Count/fname.code_Star_Counts_PairedOnly.txt
+
+conda deactivate
+conda deactivate

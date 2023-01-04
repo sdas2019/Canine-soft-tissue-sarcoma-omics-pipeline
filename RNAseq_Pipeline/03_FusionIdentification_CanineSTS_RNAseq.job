@@ -1,0 +1,47 @@
+#!/bin/bash
+#SBATCH -J SF_fname.code
+#SBATCH -p shas
+#SBATCH --qos Normal
+#SBATCH -t 24:00:00
+#SBATCH -N 1
+#SBATCH --mem=40000
+#SBATCH --output=fname.code_Star_Fusion.out
+
+# Sourcing conda
+source /curc/sw/anaconda3/latest
+conda activate perl
+
+mkdir ../Star.Fusion/fname.code.fusion
+
+#Star fusion
+
+STAR-Fusion --left_fq ../Rawfastq/fname.R1 \
+         --right_fq ../Rawfastq/fname.R2 \
+        --genome_lib_dir /projects/sdas@colostate.edu/app/STAR-Fusion-v1.5.0/CanineStarFusionDB \
+        --output_dir ../Star.Fusion/fname.code.fusion
+
+
+#Extracting the fusion genes that will be used as input for fusion inspector
+
+cut -f1 ../Star.Fusion/fname.code.fusion/star-fusion.fusion_predictions.abridged.tsv > ../Star.Fusion/FusionInspectorInput/fname.code_fusionInspectorInput1.txt
+
+tail -n +2 ../Star.Fusion/FusionInspectorInput/fname.code_fusionInspectorInput1.txt > ../Star.Fusion/FusionInspectorInput/fname.code_fusionInspectorInput.txt
+
+rm ../Star.Fusion/FusionInspectorInput/fname.code_fusionInspectorInput1.txt
+
+#Annotating fusions and generating the IGV friendly documents for viewing the fusions
+
+/projects/sdas@colostate.edu/app/STAR-Fusion-v1.5.0/FusionInspector/FusionInspector --fusions ../Star.Fusion/FusionInspectorInput/fname.code_fusionInspectorInput.txt \
+	--left_fq s../Rawfastq/fname.R1 \
+	--right_fq ../Rawfastq/fname.R2 \
+	--genome_lib_dir /projects/sdas@colostate.edu/app/STAR-Fusion-v1.5.0/CanineStarFusionDB \
+	--out_dir ../Star.Fusion/fname.code_FI \
+	--out_prefix fname.code_FI \
+	--prep_for_IGV \
+	--annotate \
+	--extract_fusion_reads ../Star.Fusion/fname.code_FI/fname.code_fusionReads \
+	--examine_coding_effect \
+	--CPU 12
+
+conda deactivate
+conda deactivate
