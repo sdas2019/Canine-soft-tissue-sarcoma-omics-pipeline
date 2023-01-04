@@ -1,0 +1,28 @@
+#!/bin/bash
+#SBATCH -J TM_fname.code
+#SBATCH -p shas
+#SBATCH --qos Normal
+#SBATCH -t 24:00:00
+#SBATCH -N 1
+#SBATCH --mem=40000
+#SBATCH --output=fname.code_STS-RNA_Trim.out
+
+# Loading modules
+module load jdk
+
+#Running Trimmomatic
+
+java -jar -Xmx48G  ~/trimmomatic-0.36.jar PE -phred33 \
+../Rawfastq/fnameR1 \
+../Rawfastq/fnameR2 \
+../Trimfiles/fname.code_R1_paired_rna.fastq.gz \
+../Trimfiles/fname.code_R1_unpaired_rna.fastq.gz \
+../Trimfiles/fname.code_R2_paired_rna.fastq.gz \
+../Trimfiles/fname.code_R2_unpaired_rna.fastq.gz \
+ILLUMINACLIP:/projects/sdas@colostate.edu/app/Trimmomatic-0.36/adapters/TruSeq3-SE.fa:2:30:10 \
+LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:50
+
+
+#Run fastqc
+
+~/fastqc -o ../Trimfastqc/ ../Trimfiles/fname.code_*paired*.gz
