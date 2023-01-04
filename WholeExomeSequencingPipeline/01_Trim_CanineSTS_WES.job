@@ -1,0 +1,31 @@
+#!/bin/bash
+#SBATCH -J fname.code_Trim
+#SBATCH -p shas
+#SBATCH --qos Normal
+#SBATCH -t 15:00:00
+#SBATCH -N 1
+#SBATCH --mem=40000
+#SBATCH --output=fname.code_STS_WES_Trim.out
+
+
+#Loading modules
+module load jdk
+
+#Running Fastqc and Trimming on raw fastq files.
+
+~/fastqc -o ../RawfastQC/ ../RawFastq/fname.code*.gz
+
+java -jar -Xmx40G ~/trimmomatic-0.36.jar PE -phred33 \
+../Rawfastq/MergedFastq/fname.code_Merged_R1_001.fastq.gz \
+../Rawfastq/MergedFastq/fname.code_Merged_R2_001.fastq.gz \
+../Trimfiles/fname.code_R1_paired.fastq.gz \
+../Trimfiles/fname.code_R1_unpaired.fastq.gz \
+../Trimfiles/fname.code_R2_paired.fastq.gz \
+../Trimfiles/fname.code_R2_unpaired.fastq.gz \
+ILLUMINACLIP:/projects/sdas@colostate.edu/app/Trimmomatic-0.36/adapters/TruSeq3-SE.fa:2:30:10 \
+LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:50
+
+
+#Run fastqc trim files
+
+~/fastqc -o ../Trimfastqc/ ../Trimfiles/fname.code*.gz
