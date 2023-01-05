@@ -1,0 +1,17 @@
+Tools	Version
+BWA	0.7.15
+COSMIC database	94
+Ensembl database	99
+FASTQC	0.11.5
+Freebayes	1.1.0-3-g961e5f3
+Genome Analysis ToolKit (gatk)	4.1.2.0 and 3.7
+GISTIC	2.0.23
+Picard-tools	1.119
+R	3.6.1 and 4.1.1
+Samtools	1.4.1
+Sequenza	2.1.9999b1
+STAR	2.6.1a
+STAR-Fusion	v1.5.0
+Trimmomatic	0.36
+VCFtools	0.1.13
+	
